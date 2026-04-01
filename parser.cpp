@@ -21,6 +21,7 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
         std::string firstWord;
         iss >> firstWord;
 
+        // ------------------ INT DECLARATION ------------------
         if (firstWord == "int") {
             std::string varDecl;
             std::getline(iss, varDecl);
@@ -28,7 +29,6 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
 
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
-                // Declaration with initialization
                 std::string varName = line.substr(0, eqPos);
                 varName.erase(varName.find_last_not_of(" \t") + 1);
                 varName.erase(0, varName.find_first_not_of(" \t"));
@@ -45,6 +45,7 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
                 auto assignNode = std::make_shared<ASTNode>("Assignment", varName);
                 std::istringstream rhsStream(rhsExpr);
                 std::string token;
+
                 while (rhsStream >> token) {
                     if (token == "+" || token == "-" || token == "*" || token == "/") {
                         assignNode->children.push_back(std::make_shared<ASTNode>("Operator", token));
@@ -57,7 +58,6 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
 
                 program->children.push_back(assignNode);
             } else {
-                // Simple declaration
                 std::istringstream nameStream(line);
                 std::string varName;
                 nameStream >> varName;
@@ -70,8 +70,39 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
                 declNode->children.push_back(std::make_shared<ASTNode>("Name", varName));
                 program->children.push_back(declNode);
             }
-        } else {
-            // Plain assignment (not in a declaration)
+        }
+
+        // ------------------ IF STATEMENT ------------------
+        else if (firstWord == "if") {
+            size_t start = line.find('(');
+            size_t end = line.find(')');
+
+            if (start != std::string::npos && end != std::string::npos) {
+                std::string condition = line.substr(start + 1, end - start - 1);
+
+                std::istringstream condStream(condition);
+                std::string left, op, right;
+                condStream >> left >> op >> right;
+
+                auto ifNode = std::make_shared<ASTNode>("If", "");
+
+                auto condNode = std::make_shared<ASTNode>("Condition", "");
+                condNode->children.push_back(std::make_shared<ASTNode>("Identifier", left));
+                condNode->children.push_back(std::make_shared<ASTNode>("Operator", op));
+
+                if (isdigit(right[0]))
+                    condNode->children.push_back(std::make_shared<ASTNode>("Literal", right));
+                else
+                    condNode->children.push_back(std::make_shared<ASTNode>("Identifier", right));
+
+                ifNode->children.push_back(condNode);
+
+                program->children.push_back(ifNode);
+            }
+        }
+
+        // ------------------ ASSIGNMENT ------------------
+        else {
             size_t eqPos = line.find('=');
             if (eqPos != std::string::npos) {
                 std::string varName = line.substr(0, eqPos);
@@ -86,6 +117,7 @@ std::shared_ptr<ASTNode> parseCode(const std::string& filename) {
 
                 std::istringstream rhsStream(rhsExpr);
                 std::string token;
+
                 while (rhsStream >> token) {
                     if (token == "+" || token == "-" || token == "*" || token == "/") {
                         assignNode->children.push_back(std::make_shared<ASTNode>("Operator", token));
